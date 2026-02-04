@@ -1,14 +1,14 @@
 /* ========================================
-   PROCORE SIDEBAR - JAVASCRIPT
-   Con AUTO-NAVEGACIÓN a Home
+   PROCORE SIDEBAR - VERSIÓN FINAL
+   URLs CORREGIDAS
    ======================================== */
 
-// Configuración
-let PROJECT_ID = null;
-let BASE_DOMAIN = null;
-let AUTO_NAV_DONE = false; // Para evitar loops
+// IDs extraídos de tu Procore
+let COMPANY_ID = '562949953433037';
+let PROJECT_ID = '562949955210139';
+let BASE_DOMAIN = 'https://us02.procore.com';
 
-// Mapeo de herramientas
+// Mapeo de herramientas a sus rutas
 const TOOLS_ROUTES = {
     'home': 'home',
     'documents': 'documents',
@@ -60,7 +60,6 @@ const ALL_TOOLS = [
     { id: 'budget', name: 'Budget', icon: 'fa-calculator', color: 'linear-gradient(135deg, #2af598 0%, #009efd 100%)' }
 ];
 
-// Favoritos y tema
 let userFavorites = ['rfis', 'submittals', 'punch-list', 'daily-log', 'photos', 'drawings', 'schedule', 'forms'];
 let isDarkTheme = false;
 
@@ -68,17 +67,12 @@ let isDarkTheme = false;
    INICIALIZACIÓN
    ======================================== */
 document.addEventListener('DOMContentLoaded', () => {
-    // Extraer IDs de la URL
-    extractProjectInfo();
-    
-    // Configurar eventos
+    extractIdsFromUrl();
     setupEventListeners();
     loadUserPreferences();
     renderFavorites();
     setupCollapsibleSections();
-    updateAllLinks();
     
-    // Mostrar contadores
     setTimeout(() => {
         updateBadge('rfiBadge', 3);
         updateBadge('submittalBadge', 5);
@@ -86,100 +80,83 @@ document.addEventListener('DOMContentLoaded', () => {
         updateBadge('obsBadge', 2);
     }, 500);
     
-    // ⭐ AUTO-NAVEGACIÓN A HOME
+    // Auto-navegar a Home si estamos en página de apps
     autoNavigateToHome();
 });
 
 /* ========================================
-   AUTO-NAVEGACIÓN A HOME
+   EXTRAER IDs DE LA URL
    ======================================== */
-function autoNavigateToHome() {
-    // Verificar si ya navegamos (evitar loops)
-    const alreadyNavigated = sessionStorage.getItem('procore_sidebar_auto_nav');
-    
-    if (alreadyNavigated) {
-        console.log('Auto-navegación ya realizada en esta sesión');
-        return;
-    }
-    
-    // Verificar si estamos en la página de apps (área vacía)
+function extractIdsFromUrl() {
     try {
-        const currentUrl = window.top.location.href;
-        
-        // Solo auto-navegar si estamos en /project/apps/
-        if (currentUrl.includes('/project/apps/')) {
-            console.log('Detectada página de apps vacía, navegando a Home...');
-            
-            // Marcar que ya navegamos
-            sessionStorage.setItem('procore_sidebar_auto_nav', 'true');
-            
-            // Esperar 300ms y navegar a Home
-            setTimeout(() => {
-                navigateToTool('home', 'Home');
-            }, 300);
-        }
-    } catch (e) {
-        console.log('No se pudo verificar URL del padre');
-    }
-}
-
-/* ========================================
-   EXTRAER INFO DEL PROYECTO
-   ======================================== */
-function extractProjectInfo() {
-    try {
-        let url = document.referrer || '';
-        
+        let url = '';
         try {
             url = window.top.location.href;
-        } catch (e) {}
+        } catch (e) {
+            url = document.referrer;
+        }
         
         console.log('URL detectada:', url);
         
         // Extraer dominio
         const domainMatch = url.match(/(https?:\/\/[^\/]+)/);
-        BASE_DOMAIN = domainMatch ? domainMatch[1] : 'https://us02.procore.com';
-        
-        // Extraer Project ID - Formato: procore.com/562949955210139/project/...
-        const projectMatch = url.match(/procore\.com\/(\d+)\/project/);
-        if (projectMatch) {
-            PROJECT_ID = projectMatch[1];
+        if (domainMatch) {
+            BASE_DOMAIN = domainMatch[1];
         }
         
-        console.log('Base Domain:', BASE_DOMAIN);
-        console.log('Project ID:', PROJECT_ID);
-        
-        if (PROJECT_ID) {
-            document.getElementById('projectName').textContent = 'Proyecto Activo';
+        // Extraer Company ID y Project ID del formato webclients
+        // Formato: /webclients/host/companies/XXXXX/projects/YYYYY/
+        const webClientMatch = url.match(/companies\/(\d+)\/projects\/(\d+)/);
+        if (webClientMatch) {
+            COMPANY_ID = webClientMatch[1];
+            PROJECT_ID = webClientMatch[2];
+            console.log('IDs extraídos (webclients):', COMPANY_ID, PROJECT_ID);
+        } else {
+            // Formato alternativo: /XXXXX/project/apps/YYYYY
+            const altMatch = url.match(/\/(\d+)\/project/);
+            if (altMatch) {
+                PROJECT_ID = altMatch[1];
+                console.log('Project ID extraído (alt):', PROJECT_ID);
+            }
         }
+        
+        // Actualizar UI
+        document.getElementById('projectName').textContent = 'Wiwynn SOCORRO';
         
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error extrayendo IDs:', error);
     }
 }
 
 /* ========================================
-   GENERAR URLs
+   CONSTRUIR URL CORRECTA DE PROCORE
    ======================================== */
 function buildToolUrl(toolId) {
     const route = TOOLS_ROUTES[toolId] || toolId;
     
-    if (PROJECT_ID && BASE_DOMAIN) {
-        return `${BASE_DOMAIN}/${PROJECT_ID}/project/${route}`;
-    }
-    
-    // Fallback con tu project ID
-    return `https://us02.procore.com/562949955210139/project/${route}`;
+    // Formato correcto de Procore:
+    // https://us02.procore.com/webclients/host/companies/{company}/projects/{project}/tools/{tool}
+    return `${BASE_DOMAIN}/webclients/host/companies/${COMPANY_ID}/projects/${PROJECT_ID}/tools/${route}`;
 }
 
-function updateAllLinks() {
-    document.querySelectorAll('.tool-item').forEach(item => {
-        const toolId = item.dataset.tool;
-        if (toolId) {
-            item.href = buildToolUrl(toolId);
-            item.target = '_top';
+/* ========================================
+   AUTO-NAVEGACIÓN A HOME
+   ======================================== */
+function autoNavigateToHome() {
+    const alreadyNavigated = sessionStorage.getItem('procore_auto_nav');
+    if (alreadyNavigated) return;
+    
+    try {
+        const url = window.top.location.href;
+        if (url.includes('/project/apps/')) {
+            sessionStorage.setItem('procore_auto_nav', 'true');
+            setTimeout(() => {
+                navigateToTool('home', 'Home');
+            }, 400);
         }
-    });
+    } catch (e) {
+        console.log('No se pudo verificar URL');
+    }
 }
 
 /* ========================================
@@ -187,17 +164,22 @@ function updateAllLinks() {
    ======================================== */
 function navigateToTool(toolId, toolName) {
     const url = buildToolUrl(toolId);
-    console.log('Navegando a:', url);
     
-    // Marcar el item como activo
+    console.log('============================================');
+    console.log('Navegando a:', toolName);
+    console.log('URL generada:', url);
+    console.log('============================================');
+    
+    // Marcar como activo
     document.querySelectorAll('.tool-item').forEach(i => i.classList.remove('active'));
     const activeItem = document.querySelector(`[data-tool="${toolId}"]`);
     if (activeItem) activeItem.classList.add('active');
     
-    // Navegar
+    // Navegar a la URL
     try {
         window.top.location.href = url;
     } catch (e) {
+        // Si falla, intentar con window.open
         window.open(url, '_top');
     }
 }
@@ -215,13 +197,16 @@ function setupEventListeners() {
     document.querySelectorAll('.tool-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            
             const toolId = item.dataset.tool;
             const toolName = item.querySelector('span').textContent;
+            
             navigateToTool(toolId, toolName);
         });
     });
 
-    // Botones del footer
+    // Botones footer
     document.getElementById('btnRefresh').addEventListener('click', refreshData);
     document.getElementById('btnTheme').addEventListener('click', toggleTheme);
 
@@ -288,10 +273,8 @@ function renderFavorites() {
     userFavorites.slice(0, 8).forEach(favId => {
         const tool = ALL_TOOLS.find(t => t.id === favId);
         if (tool) {
-            const div = document.createElement('a');
+            const div = document.createElement('div');
             div.className = 'favorite-item';
-            div.href = buildToolUrl(tool.id);
-            div.target = '_top';
             div.innerHTML = `
                 <div class="fav-icon" style="background: ${tool.color}">
                     <i class="fas ${tool.icon}"></i>
@@ -374,8 +357,7 @@ function refreshData() {
     const icon = btn.querySelector('i');
     icon.classList.add('fa-spin');
     
-    // Limpiar la sesión para permitir auto-nav de nuevo
-    sessionStorage.removeItem('procore_sidebar_auto_nav');
+    sessionStorage.removeItem('procore_auto_nav');
     
     setTimeout(() => {
         updateBadge('rfiBadge', Math.floor(Math.random() * 10) + 1);
