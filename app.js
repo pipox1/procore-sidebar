@@ -1,17 +1,14 @@
 /* ========================================
    PROCORE SIDEBAR - JAVASCRIPT
-   Versión corregida para navegación Procore
+   Versión FINAL con navegación corregida
    ======================================== */
 
-// Configuración
-let PROCORE_CONFIG = {
-    companyId: null,
-    projectId: null,
-    baseUrl: null
-};
+// Configuración extraída de la URL
+let PROJECT_ID = null;
+let BASE_DOMAIN = null;
 
-// Herramientas con sus rutas correctas en Procore
-const TOOLS_MAP = {
+// Mapeo de herramientas a sus rutas en Procore
+const TOOLS_ROUTES = {
     'home': 'home',
     'documents': 'documents',
     'directory': 'directory',
@@ -31,14 +28,14 @@ const TOOLS_MAP = {
     'photos': 'images',
     'drawings': 'drawings',
     'specifications': 'specifications',
-    'forms': 'generic_tools',
+    'forms': 'forms',
     'action-plans': 'action_plans',
-    'budget': 'budgeting',
-    'change-orders': 'prime_contracts',
-    'commitments': 'work_order_contracts',
-    'invoicing': 'payment_applications',
-    'tm-tickets': 'time_and_material_entries',
-    '360-reporting': 'portfolio/projects',
+    'budget': 'budgeting/budget',
+    'change-orders': 'change_orders',
+    'commitments': 'commitments',
+    'invoicing': 'invoices',
+    'tm-tickets': 'timesheets',
+    '360-reporting': 'reports',
     'connection-manager': 'connection_manager'
 };
 
@@ -62,7 +59,7 @@ const ALL_TOOLS = [
     { id: 'budget', name: 'Budget', icon: 'fa-calculator', color: 'linear-gradient(135deg, #2af598 0%, #009efd 100%)' }
 ];
 
-// Favoritos
+// Favoritos y tema
 let userFavorites = ['rfis', 'submittals', 'punch-list', 'daily-log', 'photos', 'drawings', 'schedule', 'forms'];
 let isDarkTheme = false;
 
@@ -70,13 +67,19 @@ let isDarkTheme = false;
    INICIALIZACIÓN
    ======================================== */
 document.addEventListener('DOMContentLoaded', () => {
-    extractProcoreIds();
+    // Extraer IDs de la URL
+    extractProjectInfo();
+    
+    // Configurar eventos
     setupEventListeners();
     loadUserPreferences();
     renderFavorites();
     setupCollapsibleSections();
     
-    // Mostrar contadores simulados
+    // Actualizar todos los enlaces
+    updateAllLinks();
+    
+    // Mostrar contadores
     setTimeout(() => {
         updateBadge('rfiBadge', 3);
         updateBadge('submittalBadge', 5);
@@ -85,149 +88,105 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 500);
 });
 
-function extractProcoreIds() {
+function extractProjectInfo() {
     try {
-        // Intentar obtener la URL del padre
-        let parentUrl = '';
+        // Obtener URL del padre o referrer
+        let url = document.referrer || '';
         
+        // También intentar desde la URL actual si estamos en iframe
         try {
-            parentUrl = window.top.location.href;
+            url = window.top.location.href;
         } catch (e) {
-            parentUrl = document.referrer;
+            // Acceso bloqueado por seguridad, usar referrer
         }
         
-        console.log('Parent URL:', parentUrl);
+        console.log('URL detectada:', url);
         
-        // Extraer Company ID y Project ID de la URL
-        // Formato 1: /companies/XXXXX/projects/YYYYY
-        // Formato 2: /XXXXX/company/projects/YYYYY
-        // Formato 3: /XXXXX/project/apps/
-        
-        // Buscar company ID
-        let companyMatch = parentUrl.match(/companies\/(\d+)/);
-        if (companyMatch) {
-            PROCORE_CONFIG.companyId = companyMatch[1];
-        }
-        
-        // Buscar project ID
-        let projectMatch = parentUrl.match(/projects\/(\d+)/);
-        if (projectMatch) {
-            PROCORE_CONFIG.projectId = projectMatch[1];
-        }
-        
-        // Si no encontramos con el formato anterior, intentar otro
-        if (!PROCORE_CONFIG.companyId || !PROCORE_CONFIG.projectId) {
-            // Formato: us02.procore.com/562949955210139/project/apps/562949954023342
-            const altMatch = parentUrl.match(/procore\.com\/(\d+)\/project/);
-            if (altMatch) {
-                PROCORE_CONFIG.projectId = altMatch[1];
-            }
-        }
-        
-        // Extraer el dominio base
-        const domainMatch = parentUrl.match(/(https?:\/\/[^\/]+)/);
+        // Extraer dominio (ej: https://us02.procore.com)
+        const domainMatch = url.match(/(https?:\/\/[^\/]+)/);
         if (domainMatch) {
-            PROCORE_CONFIG.baseUrl = domainMatch[1];
+            BASE_DOMAIN = domainMatch[1];
+        } else {
+            BASE_DOMAIN = 'https://us02.procore.com';
         }
         
-        console.log('Procore Config:', PROCORE_CONFIG);
+        // Extraer Project ID
+        // Formato: procore.com/562949955210139/project/...
+        const projectMatch = url.match(/procore\.com\/(\d+)\/project/);
+        if (projectMatch) {
+            PROJECT_ID = projectMatch[1];
+        }
         
-        // Actualizar nombre del proyecto
-        document.getElementById('projectName').textContent = 'Proyecto Activo';
+        console.log('Base Domain:', BASE_DOMAIN);
+        console.log('Project ID:', PROJECT_ID);
+        
+        // Actualizar nombre del proyecto en la UI
+        if (PROJECT_ID) {
+            document.getElementById('projectName').textContent = 'Proyecto Activo';
+        }
         
     } catch (error) {
-        console.error('Error extracting Procore IDs:', error);
+        console.error('Error extrayendo info:', error);
     }
 }
 
 /* ========================================
-   NAVEGACIÓN - VERSIÓN CORREGIDA
+   GENERAR URLs DE PROCORE
+   ======================================== */
+function buildToolUrl(toolId) {
+    const route = TOOLS_ROUTES[toolId] || toolId;
+    
+    if (PROJECT_ID && BASE_DOMAIN) {
+        // Formato correcto: https://us02.procore.com/{project_id}/project/{tool}
+        return `${BASE_DOMAIN}/${PROJECT_ID}/project/${route}`;
+    }
+    
+    // Fallback: intentar construir con valores por defecto
+    return `https://us02.procore.com/562949955210139/project/${route}`;
+}
+
+function updateAllLinks() {
+    // Actualizar todos los enlaces de herramientas
+    document.querySelectorAll('.tool-item').forEach(item => {
+        const toolId = item.dataset.tool;
+        if (toolId) {
+            const url = buildToolUrl(toolId);
+            item.href = url;
+            item.target = '_top'; // Abrir en la ventana principal
+        }
+    });
+}
+
+/* ========================================
+   NAVEGACIÓN
    ======================================== */
 function navigateToTool(toolId, toolName) {
+    const url = buildToolUrl(toolId);
+    
+    console.log('Navegando a:', url);
     showToast(`Abriendo ${toolName}...`);
     
-    const toolPath = TOOLS_MAP[toolId] || toolId;
-    
+    // Método 1: Cambiar location del top frame
     try {
-        // Obtener URL actual del navegador principal
-        let currentUrl = '';
-        try {
-            currentUrl = window.top.location.href;
-        } catch (e) {
-            currentUrl = document.referrer;
-        }
-        
-        console.log('Current URL:', currentUrl);
-        console.log('Tool Path:', toolPath);
-        
-        // Extraer el dominio (ej: https://us02.procore.com)
-        const domainMatch = currentUrl.match(/(https?:\/\/[^\/]+)/);
-        const domain = domainMatch ? domainMatch[1] : 'https://us02.procore.com';
-        
-        // Extraer company_id del formato /companies/XXXXX/ o similar
-        let companyId = null;
-        let projectId = null;
-        
-        // Buscar en formato webclients
-        const webClientMatch = currentUrl.match(/companies\/(\d+)\/projects\/(\d+)/);
-        if (webClientMatch) {
-            companyId = webClientMatch[1];
-            projectId = webClientMatch[2];
-        }
-        
-        // Si no, buscar en formato alternativo
-        if (!companyId || !projectId) {
-            const altMatch = currentUrl.match(/\/(\d+)\/(?:company\/)?projects?\/(\d+)/);
-            if (altMatch) {
-                companyId = altMatch[1];
-                projectId = altMatch[2];
-            }
-        }
-        
-        // Si aún no tenemos project ID, buscar en cualquier parte
-        if (!projectId) {
-            const projMatch = currentUrl.match(/projects?\/(\d+)/);
-            if (projMatch) {
-                projectId = projMatch[1];
-            }
-        }
-        
-        // Buscar company ID en otro formato
-        if (!companyId) {
-            const compMatch = currentUrl.match(/\/(\d{15})\/project/);
-            if (compMatch) {
-                // En este caso el número es el project ID en formato largo
-                projectId = compMatch[1];
-            }
-        }
-        
-        console.log('Company ID:', companyId);
-        console.log('Project ID:', projectId);
-        
-        let targetUrl = '';
-        
-        if (companyId && projectId) {
-            // Formato completo de URL de Procore
-            targetUrl = `${domain}/webclients/host/companies/${companyId}/projects/${projectId}/tools/${toolPath}`;
-        } else if (projectId) {
-            // Intentar con solo project ID
-            // Formato: https://us02.procore.com/562949955210139/project/tools/rfis
-            targetUrl = `${domain}/${projectId}/project/tools/${toolPath}`;
-        }
-        
-        console.log('Target URL:', targetUrl);
-        
-        if (targetUrl) {
-            // Navegar en la ventana principal
-            window.top.location.href = targetUrl;
-        } else {
-            showToast('Error: No se pudo determinar la URL');
-        }
-        
-    } catch (error) {
-        console.error('Navigation error:', error);
-        showToast('Error al navegar. Usa el menú de Procore.');
+        window.top.location.href = url;
+        return;
+    } catch (e) {
+        console.log('No se puede acceder a window.top');
     }
+    
+    // Método 2: Usar window.open con _top
+    try {
+        window.open(url, '_top');
+        return;
+    } catch (e) {
+        console.log('No se puede usar window.open');
+    }
+    
+    // Método 3: Crear un enlace y hacer clic
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_top';
+    link.click();
 }
 
 /* ========================================
@@ -239,10 +198,11 @@ function setupEventListeners() {
         filterTools(e.target.value);
     });
 
-    // Clicks en herramientas de la lista
+    // Clicks en herramientas
     document.querySelectorAll('.tool-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
+            
             const toolId = item.dataset.tool;
             const toolName = item.querySelector('span').textContent;
             
@@ -250,23 +210,21 @@ function setupEventListeners() {
             document.querySelectorAll('.tool-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             
+            // Navegar
             navigateToTool(toolId, toolName);
         });
     });
 
-    // Botón actualizar
+    // Botones del footer
     document.getElementById('btnRefresh').addEventListener('click', refreshData);
-
-    // Botón tema
     document.getElementById('btnTheme').addEventListener('click', toggleTheme);
 
-    // Editar favoritos
+    // Favoritos
     document.getElementById('btnEditFavorites').addEventListener('click', openFavoritesModal);
-
-    // Modal
     document.getElementById('closeFavorites').addEventListener('click', closeFavoritesModal);
     document.getElementById('cancelFavorites').addEventListener('click', closeFavoritesModal);
     document.getElementById('saveFavorites').addEventListener('click', saveFavorites);
+    
     document.getElementById('favoritesModal').addEventListener('click', (e) => {
         if (e.target.id === 'favoritesModal') closeFavoritesModal();
     });
@@ -289,11 +247,13 @@ function setupCollapsibleSections() {
    ======================================== */
 function filterTools(query) {
     const q = query.toLowerCase().trim();
+    
     document.querySelectorAll('.tool-item').forEach(item => {
         const name = item.querySelector('span').textContent.toLowerCase();
         item.classList.toggle('hidden', !name.includes(q) && q !== '');
     });
     
+    // Expandir secciones si hay búsqueda
     if (q) {
         document.querySelectorAll('.tools-list').forEach(list => list.classList.remove('collapsed'));
         document.querySelectorAll('.section-header.collapsible').forEach(h => h.classList.remove('collapsed'));
@@ -305,7 +265,11 @@ function filterTools(query) {
    ======================================== */
 function loadUserPreferences() {
     const saved = localStorage.getItem('procore_sidebar_favorites');
-    if (saved) userFavorites = JSON.parse(saved);
+    if (saved) {
+        try {
+            userFavorites = JSON.parse(saved);
+        } catch (e) {}
+    }
     
     if (localStorage.getItem('procore_sidebar_theme') === 'dark') {
         isDarkTheme = true;
@@ -321,15 +285,24 @@ function renderFavorites() {
     userFavorites.slice(0, 8).forEach(favId => {
         const tool = ALL_TOOLS.find(t => t.id === favId);
         if (tool) {
-            const div = document.createElement('div');
+            const url = buildToolUrl(tool.id);
+            
+            const div = document.createElement('a');
             div.className = 'favorite-item';
+            div.href = url;
+            div.target = '_top';
             div.innerHTML = `
                 <div class="fav-icon" style="background: ${tool.color}">
                     <i class="fas ${tool.icon}"></i>
                 </div>
                 <span>${tool.name}</span>
             `;
-            div.addEventListener('click', () => navigateToTool(tool.id, tool.name));
+            
+            div.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToTool(tool.id, tool.name);
+            });
+            
             grid.appendChild(div);
         }
     });
@@ -351,6 +324,7 @@ function openFavoritesModal() {
             </div>
             <span>${tool.name}</span>
         `;
+        
         label.querySelector('input').addEventListener('change', (e) => {
             label.classList.toggle('selected', e.target.checked);
             if (selector.querySelectorAll('input:checked').length > 8) {
@@ -359,6 +333,7 @@ function openFavoritesModal() {
                 showToast('Máximo 8 favoritos');
             }
         });
+        
         selector.appendChild(label);
     });
     
@@ -370,7 +345,8 @@ function closeFavoritesModal() {
 }
 
 function saveFavorites() {
-    userFavorites = Array.from(document.querySelectorAll('#favoritesSelector input:checked')).map(cb => cb.value);
+    const checked = document.querySelectorAll('#favoritesSelector input:checked');
+    userFavorites = Array.from(checked).map(cb => cb.value);
     localStorage.setItem('procore_sidebar_favorites', JSON.stringify(userFavorites));
     renderFavorites();
     closeFavoritesModal();
@@ -389,7 +365,10 @@ function toggleTheme() {
 }
 
 function updateThemeIcon() {
-    document.querySelector('#btnTheme i').className = isDarkTheme ? 'fas fa-sun' : 'fas fa-moon';
+    const icon = document.querySelector('#btnTheme i');
+    if (icon) {
+        icon.className = isDarkTheme ? 'fas fa-sun' : 'fas fa-moon';
+    }
 }
 
 /* ========================================
@@ -397,29 +376,8 @@ function updateThemeIcon() {
    ======================================== */
 function refreshData() {
     const btn = document.getElementById('btnRefresh');
-    btn.querySelector('i').classList.add('fa-spin');
+    const icon = btn.querySelector('i');
+    icon.classList.add('fa-spin');
     
     setTimeout(() => {
-        updateBadge('rfiBadge', Math.floor(Math.random() * 10));
-        updateBadge('submittalBadge', Math.floor(Math.random() * 15));
-        updateBadge('punchBadge', Math.floor(Math.random() * 20));
-        updateBadge('obsBadge', Math.floor(Math.random() * 8));
-        btn.querySelector('i').classList.remove('fa-spin');
-        showToast('Actualizado');
-    }, 800);
-}
-
-function updateBadge(id, count) {
-    const badge = document.getElementById(id);
-    if (badge) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = count > 0 ? 'inline-block' : 'none';
-    }
-}
-
-function showToast(message) {
-    const toast = document.getElementById('toast');
-    document.getElementById('toastMessage').textContent = message;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2500);
-}
+        updateBadge('rfiBadge', Math.floor(Math.random() * 10<span class="ml-2" /><span class="inline-block w-3 h-3 rounded-full bg-neutral-a12 align-middle mb-[0.1rem]" />
