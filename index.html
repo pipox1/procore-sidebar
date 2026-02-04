@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procore Quick Tools</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Google Fonts - Fuente similar a Procore -->
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="sidebar-app">
+        <!-- Header -->
+        <div class="app-header">
+            <div class="logo">
+                <svg class="procore-icon" viewBox="0 0 24 24" width="28" height="28">
+                    <path fill="#F47E42" d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l6.9 3.45L12 11.09 5.1 7.63 12 4.18zM4 8.81l7 3.5v7.69l-7-3.5V8.81zm9 11.19v-7.69l7-3.5v7.69l-7 3.5z"/>
+                </svg>
+                <span>Quick Tools</span>
+            </div>
+            <div class="project-info" id="projectInfo">
+                <i class="fas fa-building"></i>
+                <span id="projectName">Cargando proyecto...</span>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchTools" placeholder="Buscar herramienta...">
+        </div>
+
+        <!-- Favoritos -->
+        <div class="section favorites-section">
+            <div class="section-header">
+                <i class="fas fa-star"></i>
+                <span>Acceso Rápido</span>
+                <button class="edit-favorites" id="btnEditFavorites" title="Editar favoritos">
+                    <i class="fas fa-pen"></i>
+                </button>
+            </div>
+            <div class="tools-grid" id="favoritesGrid">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Scrollable Tools Container -->
+        <div class="tools-container">
+            <!-- Core Tools -->
+            <div class="section">
+                <div class="section-header collapsible" data-section="core">
+                    <i class="fas fa-cube"></i>
+                    <span>Core Tools</span>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="tools-list" id="coreTools">
+                    <a href="#" class="tool-item" data-tool="home" data-path="/home">
+                        <div class="tool-icon home">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <span>Home</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="360-reporting" data-path="/portfolio/reports">
+                        <div class="tool-icon reporting">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <span>360° Reporting</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="documents" data-path="/documents">
+                        <div class="tool-icon documents">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <span>Documents</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="directory" data-path="/directory">
+                        <div class="tool-icon directory">
+                            <i class="fas fa-address-book"></i>
+                        </div>
+                        <span>Directory</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="tasks" data-path="/tasks">
+                        <div class="tool-icon tasks">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <span>Tasks</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="connection-manager" data-path="/connection_manager">
+                        <div class="tool-icon connection">
+                            <i class="fas fa-plug"></i>
+                        </div>
+                        <span>Connection Manager</span>
+                        <span class="new-badge">New</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="admin" data-path="/admin">
+                        <div class="tool-icon admin">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <span>Admin</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Project Management -->
+            <div class="section">
+                <div class="section-header collapsible" data-section="pm">
+                    <i class="fas fa-hard-hat"></i>
+                    <span>Project Management</span>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="tools-list" id="pmTools">
+                    <a href="#" class="tool-item" data-tool="emails" data-path="/emails">
+                        <div class="tool-icon emails">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <span>Emails</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="rfis" data-path="/rfis">
+                        <div class="tool-icon rfis">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <span>RFIs</span>
+                        <span class="badge" id="rfiBadge">3</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="submittals" data-path="/submittals">
+                        <div class="tool-icon submittals">
+                            <i class="fas fa-file-import"></i>
+                        </div>
+                        <span>Submittals</span>
+                        <span class="badge" id="submittalBadge">5</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="transmittals" data-path="/transmittals">
+                        <div class="tool-icon transmittals">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
+                        <span>Transmittals</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="inspections" data-path="/inspections">
+                        <div class="tool-icon inspections">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                        <span>Inspections</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="incidents" data-path="/incidents">
+                        <div class="tool-icon incidents">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <span>Incidents</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="observations" data-path="/observations">
+                        <div class="tool-icon observations">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <span>Observations</span>
+                        <span class="badge warning" id="obsBadge">2</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="punch-list" data-path="/punch_list">
+                        <div class="tool-icon punch">
+                            <i class="fas fa-list-check"></i>
+                        </div>
+                        <span>Punch List</span>
+                        <span class="badge danger" id="punchBadge">12</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="meetings" data-path="/meetings">
+                        <div class="tool-icon meetings">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <span>Meetings</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="schedule" data-path="/schedule">
+                        <div class="tool-icon schedule">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <span>Schedule</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="daily-log" data-path="/daily_log">
+                        <div class="tool-icon dailylog">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <span>Daily Log</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="photos" data-path="/photos">
+                        <div class="tool-icon photos">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <span>Photos</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="drawings" data-path="/drawings">
+                        <div class="tool-icon drawings">
+                            <i class="fas fa-drafting-compass"></i>
+                        </div>
+                        <span>Drawings</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="specifications" data-path="/specifications">
+                        <div class="tool-icon specs">
+                            <i class="fas fa-file-contract"></i>
+                        </div>
+                        <span>Specifications</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="forms" data-path="/forms">
+                        <div class="tool-icon forms">
+                            <i class="fas fa-file-lines"></i>
+                        </div>
+                        <span>Forms</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="action-plans" data-path="/action_plans">
+                        <div class="tool-icon actionplans">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <span>Action Plans</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Resource Management -->
+            <div class="section">
+                <div class="section-header collapsible" data-section="resource">
+                    <i class="fas fa-boxes-stacked"></i>
+                    <span>Resource Management</span>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="tools-list" id="resourceTools">
+                    <a href="#" class="tool-item" data-tool="tm-tickets" data-path="/time_and_material_entries">
+                        <div class="tool-icon tmtickets">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <span>T&M Tickets</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Financial Management -->
+            <div class="section">
+                <div class="section-header collapsible" data-section="financial">
+                    <i class="fas fa-dollar-sign"></i>
+                    <span>Financial Management</span>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="tools-list" id="financialTools">
+                    <a href="#" class="tool-item" data-tool="budget" data-path="/budgets">
+                        <div class="tool-icon budget">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <span>Budget</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="change-orders" data-path="/change_orders">
+                        <div class="tool-icon changeorders">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <span>Change Orders</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="commitments" data-path="/commitments">
+                        <div class="tool-icon commitments">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <span>Commitments</span>
+                    </a>
+                    <a href="#" class="tool-item" data-tool="invoicing" data-path="/invoices">
+                        <div class="tool-icon invoicing">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <span>Invoicing</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="app-footer">
+            <button class="quick-action" id="btnRefresh" title="Actualizar">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button class="quick-action" id="btnTheme" title="Cambiar tema">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="footer-branding">
+                <span>FLUTEC Tools</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Favoritos -->
+    <div class="modal" id="favoritesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-star"></i> Editar Accesos Rápidos</h3>
+                <button class="close-modal" id="closeFavorites">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-subtitle">Selecciona hasta 8 herramientas para acceso rápido:</p>
+                <div class="favorites-selector" id="favoritesSelector">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="cancelFavorites">Cancelar</button>
+                <button class="btn-save" id="saveFavorites">
+                    <i class="fas fa-check"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">Cambios guardados</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
