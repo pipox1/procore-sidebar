@@ -330,3 +330,12 @@ function showToast(message) {
         setTimeout(() => toast.classList.remove('show'), 2500);
     }
 }
+// Método alternativo con formulario
+function navigateWithForm(url) {
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = url;
+    form.target = '_top';
+    document.body.appendChild(form);
+    form.submit();
+}
