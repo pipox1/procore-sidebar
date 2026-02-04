@@ -1,5 +1,6 @@
 /* ========================================
    PROCORE SIDEBAR - JAVASCRIPT
+   Versión corregida para navegación
    ======================================== */
 
 // Configuración de la aplicación
@@ -10,7 +11,7 @@ const APP_CONFIG = {
     projectName: ''
 };
 
-// Lista de todas las herramientas con sus propiedades
+// Lista de todas las herramientas
 const ALL_TOOLS = [
     { id: 'home', name: 'Home', icon: 'fa-home', path: '/home', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
     { id: 'documents', name: 'Documents', icon: 'fa-folder-open', path: '/documents', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
@@ -48,36 +49,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
-    // Intentar obtener contexto de Procore
-    if (window.parent !== window) {
-        // Estamos en un iframe, intentar comunicación con Procore
-        window.addEventListener('message', handleProcoreMessage);
-        
-        // Solicitar contexto
-        window.parent.postMessage({ type: 'REQUEST_CONTEXT' }, '*');
+    // Obtener información de la URL del padre (Procore)
+    try {
+        const parentUrl = window.parent.location.href;
+        parseUrlInfo(parentUrl);
+    } catch (e) {
+        // Si no podemos acceder al padre, intentar obtener de referrer
+        if (document.referrer) {
+            parseUrlInfo(document.referrer);
+        }
     }
     
-    // Verificar si hay Procore SDK disponible
-    if (typeof Procore !== 'undefined' && Procore.Context) {
-        Procore.Context.get().then(context => {
-            APP_CONFIG.projectId = context.project_id;
-            APP_CONFIG.companyId = context.company_id;
-            APP_CONFIG.projectName = context.project_name || 'Proyecto';
-            APP_CONFIG.baseUrl = `https://app.procore.com/${context.company_id}/company/projects/${context.project_id}`;
-            
-            document.getElementById('projectName').textContent = APP_CONFIG.projectName;
-            updateToolLinks();
-        }).catch(err => {
-            console.log('Contexto de Procore no disponible:', err);
-            setDemoMode();
-        });
+    // Actualizar nombre del proyecto
+    if (APP_CONFIG.projectName) {
+        document.getElementById('projectName').textContent = APP_CONFIG.projectName;
     } else {
-        setDemoMode();
+        document.getElementById('projectName').textContent = 'Proyecto Actual';
     }
-}
-
-function setDemoMode() {
-    document.getElementById('projectName').textContent = 'HBS Pump´s kit (20 N...)';
+    
     // Simular contadores
     setTimeout(() => {
         updateBadge('rfiBadge', 3);
@@ -87,13 +76,41 @@ function setDemoMode() {
     }, 500);
 }
 
-function handleProcoreMessage(event) {
-    if (event.data && event.data.type === 'PROCORE_CONTEXT') {
-        APP_CONFIG.projectId = event.data.projectId;
-        APP_CONFIG.companyId = event.data.companyId;
-        APP_CONFIG.projectName = event.data.projectName;
-        document.getElementById('projectName').textContent = APP_CONFIG.projectName;
+function parseUrlInfo(url) {
+    // Patrones de URL de Procore:
+    // https://us02.procore.com/{company_id}/company/projects/{project_id}/...
+    // https://app.procore.com/{company_id}/company/projects/{project_id}/...
+    
+    const patterns = [
+        /https?:\/\/[^\/]+\/(\d+)\/company\/projects\/(\d+)/,
+        /https?:\/\/[^\/]+\/(\d+)\/project/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) {
+            APP_CONFIG.companyId = match[1];
+            APP_CONFIG.projectId = match[2] || extractProjectId(url);
+            
+            // Determinar el dominio base
+            const domainMatch = url.match(/(https?:\/\/[^\/]+)/);
+            if (domainMatch) {
+                APP_CONFIG.baseUrl = `${domainMatch[1]}/${APP_CONFIG.companyId}/company/projects/${APP_CONFIG.projectId}`;
+            }
+            break;
+        }
     }
+}
+
+function extractProjectId(url) {
+    // Intentar extraer project_id de diferentes formatos de URL
+    const projectMatch = url.match(/projects\/(\d+)/);
+    if (projectMatch) return projectMatch[1];
+    
+    const altMatch = url.match(/project\/apps\/(\d+)/);
+    if (altMatch) return altMatch[1];
+    
+    return null;
 }
 
 /* ========================================
@@ -159,12 +176,10 @@ function setupCollapsibleSections() {
             header.classList.toggle('collapsed');
             toolsList.classList.toggle('collapsed');
             
-            // Guardar estado
             saveCollapsedState(section, header.classList.contains('collapsed'));
         });
     });
     
-    // Restaurar estado guardado
     loadCollapsedStates();
 }
 
@@ -202,7 +217,6 @@ function filterTools(query) {
         }
     });
     
-    // Expandir todas las secciones si hay búsqueda
     if (normalizedQuery) {
         document.querySelectorAll('.tools-list').forEach(list => {
             list.classList.remove('collapsed');
@@ -214,7 +228,7 @@ function filterTools(query) {
 }
 
 /* ========================================
-   NAVEGACIÓN
+   NAVEGACIÓN - CORREGIDA
    ======================================== */
 function handleToolClick(e, item) {
     e.preventDefault();
@@ -234,28 +248,48 @@ function handleToolClick(e, item) {
 }
 
 function navigateToTool(path, toolName) {
-    // Intentar usar Procore SDK
-    if (typeof Procore !== 'undefined' && Procore.Navigation) {
-        Procore.Navigation.navigate(path);
-        return;
-    }
+    showToast(`Navegando a ${toolName}...`);
     
-    // Intentar postMessage al padre
-    if (window.parent !== window) {
-        window.parent.postMessage({
-            type: 'NAVIGATE',
-            path: path,
-            toolName: toolName
-        }, '*');
-    }
+    // Construir la URL completa
+    let targetUrl = '';
     
-    // Si tenemos URL base, construir URL completa
-    if (APP_CONFIG.baseUrl) {
-        const fullUrl = APP_CONFIG.baseUrl + path;
-        window.parent.location.href = fullUrl;
+    try {
+        // Obtener la URL actual del padre
+        const currentUrl = window.top.location.href;
+        
+        // Extraer la base de la URL
+        // Formato: https://us02.procore.com/COMPANY_ID/company/projects/PROJECT_ID/tool
+        const urlMatch = currentUrl.match(/(https?:\/\/[^\/]+\/\d+\/company\/projects\/\d+)/);
+        
+        if (urlMatch) {
+            targetUrl = urlMatch[1] + path;
+        } else {
+            // Intentar otro formato de URL
+            const altMatch = currentUrl.match(/(https?:\/\/[^\/]+\/\d+)/);
+            if (altMatch) {
+                // Buscar el project_id en la URL
+                const projectMatch = currentUrl.match(/projects\/(\d+)|project\/(\d+)/);
+                if (projectMatch) {
+                    const projectId = projectMatch[1] || projectMatch[2];
+                    targetUrl = `${altMatch[1]}/company/projects/${projectId}${path}`;
+                }
+            }
+        }
+        
+        // Si tenemos URL, navegar
+        if (targetUrl) {
+            window.top.location.href = targetUrl;
+        } else {
+            // Fallback: intentar navegar con la ruta relativa
+            window.top.location.href = path;
+        }
+        
+    } catch (error) {
+        console.error('Error al navegar:', error);
+        
+        // Si hay error de permisos, mostrar mensaje
+        showToast('No se pudo navegar. Abre la herramienta desde el menú de Procore.');
     }
-    
-    showToast(`Navegando a ${toolName}`);
 }
 
 function updateToolLinks() {
@@ -271,13 +305,11 @@ function updateToolLinks() {
    FAVORITOS
    ======================================== */
 function loadUserPreferences() {
-    // Cargar favoritos
     const savedFavorites = localStorage.getItem('procore_sidebar_favorites');
     if (savedFavorites) {
         userFavorites = JSON.parse(savedFavorites);
     }
     
-    // Cargar tema
     const savedTheme = localStorage.getItem('procore_sidebar_theme');
     if (savedTheme === 'dark') {
         isDarkTheme = true;
@@ -328,16 +360,14 @@ function openFavoritesModal() {
             <span>${tool.name}</span>
         `;
         
-        // Toggle clase selected
         label.querySelector('input').addEventListener('change', (e) => {
             label.classList.toggle('selected', e.target.checked);
             
-            // Limitar a 8
             const checked = selector.querySelectorAll('input:checked');
             if (checked.length > 8) {
                 e.target.checked = false;
                 label.classList.remove('selected');
-                showToast('Máximo 8 favoritos permitidos');
+                showToast('Máximo 8 favoritos');
             }
         });
         
@@ -370,7 +400,7 @@ function toggleTheme() {
     document.body.classList.toggle('dark-theme', isDarkTheme);
     localStorage.setItem('procore_sidebar_theme', isDarkTheme ? 'dark' : 'light');
     updateThemeIcon();
-    showToast(isDarkTheme ? 'Tema oscuro activado' : 'Tema claro activado');
+    showToast(isDarkTheme ? 'Tema oscuro' : 'Tema claro');
 }
 
 function updateThemeIcon() {
@@ -385,9 +415,7 @@ function refreshData() {
     const btn = document.getElementById('btnRefresh');
     btn.querySelector('i').classList.add('fa-spin');
     
-    // Simular actualización
     setTimeout(() => {
-        // Actualizar badges con números aleatorios para demo
         updateBadge('rfiBadge', Math.floor(Math.random() * 10));
         updateBadge('submittalBadge', Math.floor(Math.random() * 15));
         updateBadge('punchBadge', Math.floor(Math.random() * 20));
