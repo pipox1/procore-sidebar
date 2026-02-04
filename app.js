@@ -1,14 +1,14 @@
 /* ========================================
-   PROCORE SIDEBAR - VERSIÓN FINAL
-   URLs CORREGIDAS
+   PROCORE SIDEBAR - SOLUCIÓN FINAL
+   Enlaces HTML puros - SIN JavaScript de navegación
    ======================================== */
 
-// IDs extraídos de tu Procore
-let COMPANY_ID = '562949953433037';
-let PROJECT_ID = '562949955210139';
-let BASE_DOMAIN = 'https://us02.procore.com';
+// IDs de tu empresa (extraídos de tus URLs)
+const COMPANY_ID = '562949953433037';
+const PROJECT_ID = '562949955210139';
+const BASE_DOMAIN = 'https://us02.procore.com';
 
-// Mapeo de herramientas a sus rutas
+// Rutas de herramientas
 const TOOLS_ROUTES = {
     'home': 'home',
     'documents': 'documents',
@@ -34,13 +34,11 @@ const TOOLS_ROUTES = {
     'budget': 'budgeting/budget',
     'change-orders': 'change_orders',
     'commitments': 'commitments',
-    'invoicing': 'invoices',
-    'tm-tickets': 'timesheets',
     '360-reporting': 'reports',
     'connection-manager': 'connection_manager'
 };
 
-// Lista de herramientas para favoritos
+// Lista para favoritos
 const ALL_TOOLS = [
     { id: 'home', name: 'Home', icon: 'fa-home', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
     { id: 'documents', name: 'Documents', icon: 'fa-folder-open', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
@@ -64,161 +62,84 @@ let userFavorites = ['rfis', 'submittals', 'punch-list', 'daily-log', 'photos', 
 let isDarkTheme = false;
 
 /* ========================================
+   CONSTRUIR URL CORRECTA DE PROCORE
+   ======================================== */
+function buildToolUrl(toolId) {
+    const route = TOOLS_ROUTES[toolId] || toolId;
+    // Formato CORRECTO de Procore:
+    return `${BASE_DOMAIN}/webclients/host/companies/${COMPANY_ID}/projects/${PROJECT_ID}/tools/${route}`;
+}
+
+/* ========================================
    INICIALIZACIÓN
    ======================================== */
 document.addEventListener('DOMContentLoaded', () => {
-    extractIdsFromUrl();
-    setupEventListeners();
+    // Actualizar TODOS los enlaces con URLs correctas y target="_top"
+    updateAllToolLinks();
+    
+    // Configurar búsqueda y favoritos (sin afectar navegación)
+    setupSearch();
+    setupCollapsibleSections();
+    setupFavoritesModal();
+    setupThemeToggle();
+    
     loadUserPreferences();
     renderFavorites();
-    setupCollapsibleSections();
     
+    // Actualizar nombre del proyecto
+    document.getElementById('projectName').textContent = 'Wiwynn SOCORRO';
+    
+    // Badges simulados
     setTimeout(() => {
         updateBadge('rfiBadge', 3);
         updateBadge('submittalBadge', 5);
         updateBadge('punchBadge', 12);
         updateBadge('obsBadge', 2);
     }, 500);
-    
-    // Auto-navegar a Home si estamos en página de apps
-    autoNavigateToHome();
 });
 
 /* ========================================
-   EXTRAER IDs DE LA URL
+   ACTUALIZAR TODOS LOS ENLACES
+   Esta es la función CLAVE
    ======================================== */
-function extractIdsFromUrl() {
-    try {
-        let url = '';
-        try {
-            url = window.top.location.href;
-        } catch (e) {
-            url = document.referrer;
-        }
-        
-        console.log('URL detectada:', url);
-        
-        // Extraer dominio
-        const domainMatch = url.match(/(https?:\/\/[^\/]+)/);
-        if (domainMatch) {
-            BASE_DOMAIN = domainMatch[1];
-        }
-        
-        // Extraer Company ID y Project ID del formato webclients
-        // Formato: /webclients/host/companies/XXXXX/projects/YYYYY/
-        const webClientMatch = url.match(/companies\/(\d+)\/projects\/(\d+)/);
-        if (webClientMatch) {
-            COMPANY_ID = webClientMatch[1];
-            PROJECT_ID = webClientMatch[2];
-            console.log('IDs extraídos (webclients):', COMPANY_ID, PROJECT_ID);
-        } else {
-            // Formato alternativo: /XXXXX/project/apps/YYYYY
-            const altMatch = url.match(/\/(\d+)\/project/);
-            if (altMatch) {
-                PROJECT_ID = altMatch[1];
-                console.log('Project ID extraído (alt):', PROJECT_ID);
-            }
-        }
-        
-        // Actualizar UI
-        document.getElementById('projectName').textContent = 'Wiwynn SOCORRO';
-        
-    } catch (error) {
-        console.error('Error extrayendo IDs:', error);
-    }
-}
-
-/* ========================================
-   CONSTRUIR URL CORRECTA DE PROCORE
-   ======================================== */
-function buildToolUrl(toolId) {
-    const route = TOOLS_ROUTES[toolId] || toolId;
-    
-    // Formato correcto de Procore:
-    // https://us02.procore.com/webclients/host/companies/{company}/projects/{project}/tools/{tool}
-    return `${BASE_DOMAIN}/webclients/host/companies/${COMPANY_ID}/projects/${PROJECT_ID}/tools/${route}`;
-}
-
-/* ========================================
-   AUTO-NAVEGACIÓN A HOME
-   ======================================== */
-function autoNavigateToHome() {
-    const alreadyNavigated = sessionStorage.getItem('procore_auto_nav');
-    if (alreadyNavigated) return;
-    
-    try {
-        const url = window.top.location.href;
-        if (url.includes('/project/apps/')) {
-            sessionStorage.setItem('procore_auto_nav', 'true');
-            setTimeout(() => {
-                navigateToTool('home', 'Home');
-            }, 400);
-        }
-    } catch (e) {
-        console.log('No se pudo verificar URL');
-    }
-}
-
-/* ========================================
-   NAVEGACIÓN
-   ======================================== */
-function navigateToTool(toolId, toolName) {
-    const url = buildToolUrl(toolId);
-    
-    console.log('============================================');
-    console.log('Navegando a:', toolName);
-    console.log('URL generada:', url);
-    console.log('============================================');
-    
-    // Marcar como activo
-    document.querySelectorAll('.tool-item').forEach(i => i.classList.remove('active'));
-    const activeItem = document.querySelector(`[data-tool="${toolId}"]`);
-    if (activeItem) activeItem.classList.add('active');
-    
-    // Navegar a la URL
-    try {
-        window.top.location.href = url;
-    } catch (e) {
-        // Si falla, intentar con window.open
-        window.open(url, '_top');
-    }
-}
-
-/* ========================================
-   EVENT LISTENERS
-   ======================================== */
-function setupEventListeners() {
-    // Búsqueda
-    document.getElementById('searchTools').addEventListener('input', (e) => {
-        filterTools(e.target.value);
-    });
-
-    // Clicks en herramientas
+function updateAllToolLinks() {
     document.querySelectorAll('.tool-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        const toolId = item.dataset.tool;
+        if (toolId) {
+            const url = buildToolUrl(toolId);
             
-            const toolId = item.dataset.tool;
-            const toolName = item.querySelector('span').textContent;
+            // Configurar el enlace correctamente
+            item.href = url;
+            item.target = '_top';  // ⭐ CLAVE: Navegar en ventana principal
             
-            navigateToTool(toolId, toolName);
+            // NO agregar preventDefault - dejar que el enlace funcione naturalmente
+            
+            console.log(`Tool: ${toolId} -> ${url}`);
+        }
+    });
+}
+
+/* ========================================
+   BÚSQUEDA (sin afectar navegación)
+   ======================================== */
+function setupSearch() {
+    const searchInput = document.getElementById('searchTools');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            
+            document.querySelectorAll('.tool-item').forEach(item => {
+                const name = item.querySelector('span').textContent.toLowerCase();
+                item.style.display = name.includes(query) || query === '' ? 'flex' : 'none';
+            });
+            
+            // Expandir secciones si hay búsqueda
+            if (query) {
+                document.querySelectorAll('.tools-list').forEach(list => list.classList.remove('collapsed'));
+                document.querySelectorAll('.section-header.collapsible').forEach(h => h.classList.remove('collapsed'));
+            }
         });
-    });
-
-    // Botones footer
-    document.getElementById('btnRefresh').addEventListener('click', refreshData);
-    document.getElementById('btnTheme').addEventListener('click', toggleTheme);
-
-    // Favoritos
-    document.getElementById('btnEditFavorites').addEventListener('click', openFavoritesModal);
-    document.getElementById('closeFavorites').addEventListener('click', closeFavoritesModal);
-    document.getElementById('cancelFavorites').addEventListener('click', closeFavoritesModal);
-    document.getElementById('saveFavorites').addEventListener('click', saveFavorites);
-    
-    document.getElementById('favoritesModal').addEventListener('click', (e) => {
-        if (e.target.id === 'favoritesModal') closeFavoritesModal();
-    });
+    }
 }
 
 /* ========================================
@@ -228,26 +149,10 @@ function setupCollapsibleSections() {
     document.querySelectorAll('.section-header.collapsible').forEach(header => {
         header.addEventListener('click', () => {
             header.classList.toggle('collapsed');
-            header.nextElementSibling.classList.toggle('collapsed');
+            const toolsList = header.nextElementSibling;
+            if (toolsList) toolsList.classList.toggle('collapsed');
         });
     });
-}
-
-/* ========================================
-   BÚSQUEDA
-   ======================================== */
-function filterTools(query) {
-    const q = query.toLowerCase().trim();
-    
-    document.querySelectorAll('.tool-item').forEach(item => {
-        const name = item.querySelector('span').textContent.toLowerCase();
-        item.classList.toggle('hidden', !name.includes(q) && q !== '');
-    });
-    
-    if (q) {
-        document.querySelectorAll('.tools-list').forEach(list => list.classList.remove('collapsed'));
-        document.querySelectorAll('.section-header.collapsible').forEach(h => h.classList.remove('collapsed'));
-    }
 }
 
 /* ========================================
@@ -268,31 +173,55 @@ function loadUserPreferences() {
 
 function renderFavorites() {
     const grid = document.getElementById('favoritesGrid');
+    if (!grid) return;
+    
     grid.innerHTML = '';
     
     userFavorites.slice(0, 8).forEach(favId => {
         const tool = ALL_TOOLS.find(t => t.id === favId);
         if (tool) {
-            const div = document.createElement('div');
-            div.className = 'favorite-item';
-            div.innerHTML = `
+            const url = buildToolUrl(tool.id);
+            
+            // Crear enlace HTML puro
+            const link = document.createElement('a');
+            link.className = 'favorite-item';
+            link.href = url;
+            link.target = '_top';  // ⭐ CLAVE
+            link.innerHTML = `
                 <div class="fav-icon" style="background: ${tool.color}">
                     <i class="fas ${tool.icon}"></i>
                 </div>
                 <span>${tool.name}</span>
             `;
-            div.addEventListener('click', (e) => {
-                e.preventDefault();
-                navigateToTool(tool.id, tool.name);
-            });
-            grid.appendChild(div);
+            
+            grid.appendChild(link);
         }
     });
+}
+
+function setupFavoritesModal() {
+    const btnEdit = document.getElementById('btnEditFavorites');
+    const btnClose = document.getElementById('closeFavorites');
+    const btnCancel = document.getElementById('cancelFavorites');
+    const btnSave = document.getElementById('saveFavorites');
+    const modal = document.getElementById('favoritesModal');
+    
+    if (btnEdit) btnEdit.addEventListener('click', openFavoritesModal);
+    if (btnClose) btnClose.addEventListener('click', closeFavoritesModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeFavoritesModal);
+    if (btnSave) btnSave.addEventListener('click', saveFavorites);
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target.id === 'favoritesModal') closeFavoritesModal();
+        });
+    }
 }
 
 function openFavoritesModal() {
     const modal = document.getElementById('favoritesModal');
     const selector = document.getElementById('favoritesSelector');
+    if (!modal || !selector) return;
+    
     selector.innerHTML = '';
     
     ALL_TOOLS.forEach(tool => {
@@ -306,6 +235,7 @@ function openFavoritesModal() {
             </div>
             <span>${tool.name}</span>
         `;
+        
         label.querySelector('input').addEventListener('change', (e) => {
             label.classList.toggle('selected', e.target.checked);
             if (selector.querySelectorAll('input:checked').length > 8) {
@@ -314,6 +244,7 @@ function openFavoritesModal() {
                 showToast('Máximo 8 favoritos');
             }
         });
+        
         selector.appendChild(label);
     });
     
@@ -321,7 +252,8 @@ function openFavoritesModal() {
 }
 
 function closeFavoritesModal() {
-    document.getElementById('favoritesModal').classList.remove('active');
+    const modal = document.getElementById('favoritesModal');
+    if (modal) modal.classList.remove('active');
 }
 
 function saveFavorites() {
@@ -336,6 +268,18 @@ function saveFavorites() {
 /* ========================================
    TEMA
    ======================================== */
+function setupThemeToggle() {
+    const btnTheme = document.getElementById('btnTheme');
+    if (btnTheme) {
+        btnTheme.addEventListener('click', toggleTheme);
+    }
+    
+    const btnRefresh = document.getElementById('btnRefresh');
+    if (btnRefresh) {
+        btnRefresh.addEventListener('click', refreshData);
+    }
+}
+
 function toggleTheme() {
     isDarkTheme = !isDarkTheme;
     document.body.classList.toggle('dark-theme', isDarkTheme);
@@ -354,17 +298,17 @@ function updateThemeIcon() {
    ======================================== */
 function refreshData() {
     const btn = document.getElementById('btnRefresh');
-    const icon = btn.querySelector('i');
-    icon.classList.add('fa-spin');
+    if (!btn) return;
     
-    sessionStorage.removeItem('procore_auto_nav');
+    const icon = btn.querySelector('i');
+    if (icon) icon.classList.add('fa-spin');
     
     setTimeout(() => {
         updateBadge('rfiBadge', Math.floor(Math.random() * 10) + 1);
         updateBadge('submittalBadge', Math.floor(Math.random() * 15) + 1);
         updateBadge('punchBadge', Math.floor(Math.random() * 20) + 1);
         updateBadge('obsBadge', Math.floor(Math.random() * 8) + 1);
-        icon.classList.remove('fa-spin');
+        if (icon) icon.classList.remove('fa-spin');
         showToast('Actualizado');
     }, 800);
 }
